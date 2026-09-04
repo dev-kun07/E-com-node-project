@@ -1,0 +1,23 @@
+{
+  "name": "ecom-sim",
+  "version": "1.0.0",
+  "description": "Simple Node.js, Express and MongoDB e-commerce backend",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^2.11.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "joi": "^18.2.5",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.7.4",
+    "multer": "^2.3.0",
+    "nodemailer": "^9.0.3",
+    "nodemon": "^3.1.14"
+  }
+}
