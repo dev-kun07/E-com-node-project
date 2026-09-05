@@ -21,11 +21,15 @@ const {
     applySeller,
     getSellerApplications,
     approveSeller,
-    rejectSeller
+    rejectSeller,
+    refreshToken,
+    logoutUser
 } = require("../controllers/auth.controller");
 
 router.post("/signup", validateSignup, registerUser);
 router.post("/login", validateLogin, loginUser);
+router.post("/refresh-token", refreshToken);
+router.post("/logout", logoutUser);
 router.post("/verify-otp", validateOtp, verifyOtp);
 router.post("/resend-otp", validateEmail, resendOtp);
 router.post("/forgot-password", validateEmail, forgotPassword);

@@ -1,16 +1,24 @@
 const mongoose = require("mongoose");
 const uploadToCloudinary = require("../utils/cloudUp");
 const Product = require("../models/product.model");
+const fs = require("fs");
 
 const createProduct = async (req, res) => {
     try {
+        let imageUrl = "";
+
+        if (req.file) {
+            imageUrl = await uploadToCloudinary(req.file.path);
+            fs.unlink(req.file.path, () => {});
+        }
+
         const product = new Product({
             name: req.body.name,
             description: req.body.description,
             price: req.body.price,
             stock: req.body.stock,
             category: req.body.category,
-            images: req.file ? await uploadToCloudinary(req.file.path) : "",
+            images: imageUrl,
             seller: req.user._id,
             status: "pending"
         });
@@ -142,7 +150,6 @@ const updateProduct = async (req, res) => {
         product.price = req.body.price;
         product.stock = req.body.stock;
         product.category = req.body.category;
-        product.images = req.body.images;
         product.status = "pending";
         product.rejectionReason = "";
 

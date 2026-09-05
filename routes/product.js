@@ -20,7 +20,7 @@ const {
 router.get("/all", getAllProducts);
 router.get("/id/:id", getProductById);
 
-router.post("/create", authMiddleware, upload.single("image"), validateProduct, createProduct);
+router.post("/create", authMiddleware, sellerMiddleware, upload.single("image"), validateProduct, createProduct);
 router.get("/my-products", authMiddleware, sellerMiddleware, getMyProducts);
 router.put("/update/:id", authMiddleware, sellerMiddleware, validateProduct, updateProduct);
 router.delete("/delete/:id", authMiddleware, sellerMiddleware, deleteProduct);

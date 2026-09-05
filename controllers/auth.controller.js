@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const Token = require("../models/token.model");
 const otpGen = require("../utils/otpGen");
 const sendmail = require("../models/mail.model");
+const RefreshToken = require("../models/refTok.model");
 
 const registerUser = async (req, res) => {
     const { name, password, phone, addresses } = req.body;
@@ -20,6 +21,7 @@ const registerUser = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
+
         const newUser = new User({
             name,
             email,
@@ -31,6 +33,7 @@ const registerUser = async (req, res) => {
         await newUser.save();
 
         const otp = otpGen();
+
         const newToken = new Token({
             userId: newUser._id,
             token: otp,
@@ -39,6 +42,7 @@ const registerUser = async (req, res) => {
         });
 
         await newToken.save();
+
         await sendmail(
             email,
             "Verify Your Account",
@@ -89,15 +93,28 @@ const loginUser = async (req, res) => {
             });
         }
 
-        const token = jwt.sign(
+        const accessToken = jwt.sign(
             { id: user._id },
             process.env.JWT_SECRET,
-            { expiresIn: "24h" }
+            { expiresIn: "15m" }
         );
+
+        const refreshToken = jwt.sign(
+            { id: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        await RefreshToken.create({
+            userId: user._id,
+            token: refreshToken,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        });
 
         return res.status(200).json({
             message: "Login successful",
-            token,
+            accessToken,
+            refreshToken,
             user: {
                 id: user._id,
                 name: user.name,
@@ -105,6 +122,82 @@ const loginUser = async (req, res) => {
                 role: user.role,
                 sellerStatus: user.sellerStatus
             }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
+
+const refreshToken = async (req, res) => {
+    try {
+        const token = req.body.refreshToken;
+
+        if (!token) {
+            return res.status(401).json({
+                message: "Refresh token required"
+            });
+        }
+
+        const storedToken = await RefreshToken.findOne({ token });
+
+        if (!storedToken) {
+            return res.status(401).json({
+                message: "Invalid refresh token"
+            });
+        }
+
+        if (storedToken.expiresAt < new Date()) {
+            await RefreshToken.deleteOne({ _id: storedToken._id });
+
+            return res.status(401).json({
+                message: "Refresh token expired"
+            });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        const accessToken = jwt.sign(
+            { id: decoded.id },
+            process.env.JWT_SECRET,
+            { expiresIn: "15m" }
+        );
+
+        return res.status(200).json({
+            message: "Access token refreshed",
+            accessToken
+        });
+    } catch (error) {
+        return res.status(401).json({
+            message: "Invalid refresh token"
+        });
+    }
+};
+
+const logoutUser = async (req, res) => {
+    try {
+        const token = req.body.refreshToken;
+
+        if (!token) {
+            return res.status(400).json({
+                message: "Refresh token required"
+            });
+        }
+
+        const deletedToken = await RefreshToken.findOneAndDelete({
+            token
+        });
+
+        if (!deletedToken) {
+            return res.status(404).json({
+                message: "Refresh token not found"
+            });
+        }
+
+        return res.status(200).json({
+            message: "Logout successful"
         });
     } catch (error) {
         return res.status(500).json({
@@ -149,6 +242,7 @@ const verifyOtp = async (req, res) => {
 
         user.isVerified = true;
         await user.save();
+
         await Token.deleteOne({ _id: token._id });
 
         return res.status(200).json({
@@ -186,6 +280,7 @@ const resendOtp = async (req, res) => {
         });
 
         const otp = otpGen();
+
         const newToken = new Token({
             userId: user._id,
             token: otp,
@@ -194,6 +289,7 @@ const resendOtp = async (req, res) => {
         });
 
         await newToken.save();
+
         await sendmail(
             email,
             "Verify Your Account",
@@ -229,6 +325,7 @@ const forgotPassword = async (req, res) => {
         });
 
         const otp = otpGen();
+
         const newToken = new Token({
             userId: user._id,
             token: otp,
@@ -237,6 +334,7 @@ const forgotPassword = async (req, res) => {
         });
 
         await newToken.save();
+
         await sendmail(
             email,
             "Reset Your Password",
@@ -289,6 +387,7 @@ const resetPassword = async (req, res) => {
 
         user.password = await bcrypt.hash(password, 10);
         await user.save();
+
         await Token.deleteOne({ _id: token._id });
 
         return res.status(200).json({
@@ -359,7 +458,9 @@ const applySeller = async (req, res) => {
 
 const getSellerApplications = async (req, res) => {
     try {
-        const applications = await User.find({ sellerStatus: "pending" }).select("-password");
+        const applications = await User.find({
+            sellerStatus: "pending"
+        }).select("-password");
 
         return res.status(200).json({
             applications
@@ -436,6 +537,8 @@ const rejectSeller = async (req, res) => {
 module.exports = {
     registerUser,
     loginUser,
+    refreshToken,
+    logoutUser,
     verifyOtp,
     resendOtp,
     forgotPassword,
