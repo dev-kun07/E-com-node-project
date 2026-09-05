@@ -11,13 +11,15 @@ const authMiddleware = async (req, res, next) => {
             });
         }
 
-        const jwtToken = token.split(" ")[1];
+        const parts = token.split(" ");
 
-        if (!jwtToken) {
+        if (parts.length !== 2 || parts[0] !== "Bearer") {
             return res.status(401).json({
                 message: "Invalid token format"
             });
         }
+
+        const jwtToken = parts[1];
 
         const decoded = jwt.verify(jwtToken, process.env.JWT_SECRET);
 
